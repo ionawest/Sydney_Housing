@@ -1,0 +1,1992 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sydney Suburb Livability, Infrastructure & Couples Commute Engine</title>
+
+    <!-- Leaflet & Leaflet Draw CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css" />
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --bg-dark: #0f172a;
+            --bg-panel: rgba(15, 23, 42, 0.95);
+            --bg-card: #1e293b;
+            --border: #334155;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent: #38bdf8;
+            --accent-hover: #0284c7;
+            --work1: #f43f5e;
+            --work2: #a855f7;
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-main);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+        }
+
+        /* LEFT SIDEBAR */
+        #sidebar {
+            width: 420px;
+            height: 100vh;
+            background: var(--bg-panel);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            z-index: 1000;
+            overflow-y: auto;
+            padding: 15px;
+            gap: 12px;
+        }
+
+        .brand-header h1 {
+            font-size: 1.08rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+        }
+        .brand-header p {
+            font-size: 0.73rem;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        .search-box {
+            width: 100%;
+            padding: 8px 11px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-main);
+            font-size: 0.81rem;
+            outline: none;
+        }
+        .search-box:focus { border-color: var(--accent); }
+
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 11px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .card-title {
+            font-size: 0.71rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--text-muted);
+            font-weight: 600;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .mode-tabs {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 5px;
+            background: var(--bg-dark);
+            padding: 4px;
+            border-radius: 6px;
+        }
+        .mode-tab {
+            padding: 6px;
+            text-align: center;
+            font-size: 0.77rem;
+            font-weight: 600;
+            border-radius: 4px;
+            cursor: pointer;
+            color: var(--text-muted);
+            border: none;
+            background: transparent;
+            transition: all 0.15s;
+        }
+        .mode-tab.active {
+            background: var(--accent);
+            color: #0f172a;
+        }
+
+        .pill-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+        }
+        .pill {
+            padding: 4px 8px;
+            font-size: 0.72rem;
+            font-weight: 500;
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .pill:hover { border-color: var(--accent); color: var(--text-main); }
+        .pill.active {
+            background: rgba(56, 189, 248, 0.18);
+            border-color: var(--accent);
+            color: var(--accent);
+            font-weight: 600;
+        }
+
+        select.metric-select {
+            width: 100%;
+            padding: 7px 9px;
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-main);
+            font-size: 0.8rem;
+            outline: none;
+            cursor: pointer;
+        }
+
+        /* Toggleable Infrastructure Grid */
+        .overlay-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+        }
+        .overlay-toggle {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 8px;
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 0.74rem;
+            cursor: pointer;
+            user-select: none;
+        }
+        .overlay-toggle input { cursor: pointer; }
+        .dot-swatch {
+            width: 9px;
+            height: 9px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        /* Hard Budget Constraints */
+        .budget-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 6px;
+        }
+        .budget-box {
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            border-radius: 5px;
+            padding: 5px 7px;
+        }
+        .budget-box label {
+            font-size: 0.65rem;
+            color: var(--text-muted);
+            display: block;
+            margin-bottom: 2px;
+        }
+        .budget-box input {
+            width: 100%;
+            background: transparent;
+            border: none;
+            color: var(--accent);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.78rem;
+            font-weight: 600;
+            outline: none;
+        }
+
+        /* Dual Workplace Planner */
+        .work-row {
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 7px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        .work-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.74rem;
+            font-weight: 600;
+        }
+        .work-controls {
+            display: flex;
+            gap: 5px;
+            align-items: center;
+        }
+        .pin-btn {
+            padding: 5px 8px;
+            font-size: 0.71rem;
+            font-weight: 600;
+            border-radius: 5px;
+            border: 1px solid var(--border);
+            background: var(--bg-card);
+            color: var(--text-main);
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        .pin-btn.picking {
+            background: var(--warning);
+            color: #0f172a;
+            border-color: var(--warning);
+        }
+
+        /* Formula Engine */
+        .formula-input {
+            width: 100%;
+            min-height: 56px;
+            padding: 8px;
+            background: #090d16;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: #38bdf8;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.78rem;
+            resize: vertical;
+            outline: none;
+        }
+        .token-pill {
+            padding: 2px 6px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.68rem;
+            background: #090d16;
+            border: 1px solid #334155;
+            color: #e2e8f0;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .token-pill:hover { border-color: var(--accent); color: var(--accent); }
+        .token-pill.couple-token { border-color: #a855f7; color: #e9d5ff; }
+        .token-pill.infra-token  { border-color: #22c55e; color: #bbf7d0; }
+
+        .btn-eval {
+            width: 100%;
+            padding: 7px;
+            background: var(--accent);
+            color: #0f172a;
+            font-weight: 600;
+            font-size: 0.79rem;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        .btn-eval:hover { background: var(--accent-hover); color: #fff; }
+
+        #formula-error {
+            font-size: 0.72rem;
+            color: var(--danger);
+            display: none;
+        }
+
+        /* Leaderboard */
+        .leaderboard-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            max-height: 170px;
+            overflow-y: auto;
+        }
+        .leaderboard-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 5px 8px;
+            background: var(--bg-dark);
+            border-radius: 4px;
+            font-size: 0.75rem;
+            cursor: pointer;
+            border: 1px solid transparent;
+        }
+        .leaderboard-item:hover { border-color: var(--accent); }
+        .leaderboard-rank {
+            color: var(--accent);
+            font-weight: 700;
+            margin-right: 6px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .leaderboard-val {
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--text-muted);
+            font-size: 0.72rem;
+        }
+
+        /* MAP CONTAINER */
+        #map-wrapper {
+            flex: 1;
+            position: relative;
+            height: 100vh;
+        }
+        #map {
+            width: 100%;
+            height: 100%;
+            background: #090d16;
+        }
+
+        /* FLOATING LEGEND */
+        .map-legend {
+            position: absolute;
+            bottom: 24px;
+            left: 24px;
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            padding: 11px 14px;
+            border-radius: 8px;
+            z-index: 900;
+            min-width: 245px;
+            backdrop-filter: blur(8px);
+        }
+        .legend-title {
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+        .legend-bar {
+            height: 11px;
+            width: 100%;
+            border-radius: 4px;
+            margin-bottom: 5px;
+        }
+        .legend-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* RIGHT INSPECTOR & COMPARISON SUITE */
+        #inspector {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            width: 415px;
+            max-height: calc(100vh - 32px);
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            z-index: 1000;
+            padding: 14px;
+            overflow-y: auto;
+            display: none;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.55);
+        }
+        .insp-top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            gap: 8px;
+        }
+        .inspector-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 8px;
+            margin-bottom: 10px;
+        }
+        .inspector-header h2 { font-size: 1.04rem; font-weight: 700; }
+        .badge-row { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 4px; }
+        .postcode-badge {
+            display: inline-block;
+            padding: 2px 6px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            font-size: 0.68rem;
+            color: var(--accent);
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .hub-badge {
+            display: inline-block;
+            padding: 2px 6px;
+            background: rgba(245, 158, 11, 0.16);
+            border: 1px solid var(--warning);
+            border-radius: 4px;
+            font-size: 0.67rem;
+            color: var(--warning);
+            font-weight: 600;
+        }
+        .close-btn {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: 1.15rem;
+            cursor: pointer;
+        }
+        .stat-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+            margin-bottom: 10px;
+        }
+        .stat-box {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            padding: 6px 8px;
+            border-radius: 6px;
+        }
+        .stat-label { font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; }
+        .stat-val { font-size: 0.88rem; font-weight: 700; margin-top: 2px; font-family: 'JetBrains Mono', monospace; }
+        .stat-sub { font-size: 0.64rem; color: var(--text-muted); margin-top: 2px; }
+        .chart-container {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 9px;
+            margin-top: 8px;
+        }
+
+        .comp-chips { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 8px; }
+        .comp-chip {
+            display: flex; align-items: center; gap: 5px;
+            padding: 3px 8px; border-radius: 5px; font-size: 0.71rem; font-weight: 600;
+            background: var(--bg-card); border: 1px solid var(--border);
+        }
+        .comp-table { width: 100%; border-collapse: collapse; font-size: 0.71rem; margin-top: 8px; }
+        .comp-table th, .comp-table td {
+            padding: 4px 5px; border-bottom: 1px solid var(--border);
+            text-align: right; font-family: 'JetBrains Mono', monospace;
+        }
+        .comp-table th:first-child, .comp-table td:first-child {
+            text-align: left; font-family: 'Inter', sans-serif; color: var(--text-muted); font-weight: 500;
+        }
+        .best-cell { color: var(--success); font-weight: 700; }
+
+        .suburb-tooltip {
+            background: rgba(15, 23, 42, 0.96);
+            border: 1px solid #38bdf8;
+            color: #f8fafc;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.75rem;
+            padding: 6px 10px;
+            border-radius: 6px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.45);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- LEFT SIDEBAR -->
+    <aside id="sidebar">
+        <div class="brand-header">
+            <h1>Sydney Suburb Livability Engine</h1>
+            <p>926 Suburbs • Bonds, Sales, BOCSAR, GTFS, Climate & Infrastructure</p>
+        </div>
+
+        <input type="text" id="suburb-search" class="search-box" placeholder="🔍 Search suburb or postcode (Shift+Click map to compare)..." list="suburb-list" />
+        <datalist id="suburb-list"></datalist>
+
+        <!-- Mode Selector -->
+        <div class="mode-tabs">
+            <button class="mode-tab active" id="tab-single" onclick="setMode('single')">Single Metric</button>
+            <button class="mode-tab" id="tab-formula" onclick="setMode('formula')">Custom Formula</button>
+        </div>
+
+        <!-- Single Metric Card -->
+        <div class="card" id="single-metric-card">
+            <div class="card-title">
+                <span>Select Map Layer</span>
+                <span id="active-col-badge" style="font-family:'JetBrains Mono';font-size:0.65rem;color:var(--accent);"></span>
+            </div>
+            <select id="metric-select" class="metric-select" onchange="updateDashboard()">
+                <optgroup label="Housing Prices (Filterable by Size Below)">
+                    <option value="rent" selected>Median Weekly Rent ($/wk)</option>
+                    <option value="buy_price">Median Buy Price ($)</option>
+                    <option value="house_price_per_m2">House Land Price per m² ($/m²)</option>
+                    <option value="yield">Gross Rental Yield (%)</option>
+                    <option value="price_to_income">Price-to-Income Affordability Ratio</option>
+                </optgroup>
+                <optgroup label="Couples Workplace & CBD Commute (Live GTFS / Drive)">
+                    <option value="cbd_commute_mins">Morning Peak Commute to CBD (mins)</option>
+                    <option value="work1_mins">Commute to Workplace 1 (mins)</option>
+                    <option value="work2_mins">Commute to Workplace 2 (mins)</option>
+                    <option value="couple_avg">Couples Average Commute (W1 + W2)/2</option>
+                    <option value="couple_diff">Couples Commute Fairness |W1 - W2|</option>
+                    <option value="station_dist_km">Distance to Nearest Station (km)</option>
+                </optgroup>
+                <optgroup label="Infrastructure & Amenity Access (OSM / GTFS)">
+                    <option value="schools_count">Local Schools within 2km (count)</option>
+                    <option value="shopping_dist_km">Distance to Major Shopping Hub (km)</option>
+                    <option value="hospital_dist_km">Distance to Nearest Hospital (km)</option>
+                    <option value="beach_dist_km">Distance to Nearest Coastal Beach (km)</option>
+                </optgroup>
+                <optgroup label="Seasonal Microclimate (Open-Meteo ERA5)">
+                    <option value="summer_max_temp">Summer Avg Daily High (°C - Jan/Feb)</option>
+                    <option value="winter_min_temp">Winter Avg Overnight Low (°C - Jul)</option>
+                    <option value="days_over_32c">Extreme Summer Heat Days (≥32°C / yr)</option>
+                    <option value="temp_swing">Seasonal Temperature Swing (Δ°C)</option>
+                </optgroup>
+                <optgroup label="Safety & Crime (BOCSAR Ambient-Adjusted)">
+                    <option value="crime_total_rate">Residential Crime Rate (per 1k ambient)</option>
+                    <option value="crime_violent_rate">Residential Violent Crime Rate</option>
+                    <option value="crime_property_rate">Residential Property / Burglary Rate</option>
+                    <option value="crime_5yr_trend_pct">5-Year Crime Trend (%)</option>
+                </optgroup>
+                <optgroup label="Environment, Land Use & Demographics (ABS)">
+                    <option value="parkland_pct">Parkland & Green Space (%)</option>
+                    <option value="commercial_pct">Commercial & Retail Activity (%)</option>
+                    <option value="pop_density_sqkm">Population Density (per km²)</option>
+                    <option value="hhd_income_weekly">Median Household Income ($/wk)</option>
+                </optgroup>
+            </select>
+        </div>
+
+        <!-- Custom Formula Builder Card (With Expanded Renter & Buyer Presets) -->
+        <div class="card" id="formula-card" style="display:none;">
+            <div class="card-title">
+                <span>Custom Math Formula (Normalized [0, 1])</span>
+            </div>
+
+            <div class="pill-group">
+                <span class="token-pill" onclick="insertToken('rent')">rent</span>
+                <span class="token-pill" onclick="insertToken('buy_price')">buy_price</span>
+                <span class="token-pill" onclick="insertToken('yield')">yield</span>
+                <span class="token-pill couple-token" onclick="insertToken('work1_mins')">work1_mins</span>
+                <span class="token-pill couple-token" onclick="insertToken('work2_mins')">work2_mins</span>
+                <span class="token-pill couple-token" onclick="insertToken('couple_avg')">couple_avg</span>
+                <span class="token-pill couple-token" onclick="insertToken('couple_diff')">couple_diff</span>
+                <span class="token-pill" onclick="insertToken('cbd_mins')">cbd_mins</span>
+                <span class="token-pill" onclick="insertToken('station_km')">station_km</span>
+                <span class="token-pill infra-token" onclick="insertToken('schools')">schools</span>
+                <span class="token-pill infra-token" onclick="insertToken('shops_km')">shops_km</span>
+                <span class="token-pill infra-token" onclick="insertToken('hospital_km')">hospital_km</span>
+                <span class="token-pill" onclick="insertToken('beach_km')">beach_km</span>
+                <span class="token-pill" onclick="insertToken('summer_temp')">summer_temp</span>
+                <span class="token-pill" onclick="insertToken('crime')">crime</span>
+                <span class="token-pill" onclick="insertToken('parkland')">parkland</span>
+                <span class="token-pill" onclick="insertToken('commercial')">commercial</span>
+                <span class="token-pill" onclick="insertToken('income')">income</span>
+            </div>
+
+            <textarea id="formula-input" class="formula-input" spellcheck="false">(1.8 * (1 - couple_avg)) + (0.8 * (1 - couple_diff)) + (1.2 * (1 - rent)) + (1 - crime) + (0.6 * (1 - shops_km))</textarea>
+            <div id="formula-error"></div>
+
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;">
+                <span style="font-size:0.71rem;color:var(--text-muted);">Preset Persona:</span>
+                <select id="preset-select" class="metric-select" style="flex:1;padding:5px 7px;font-size:0.74rem;" onchange="applyPresetDropdown(this.value)">
+                    <option value="">-- Choose a Renter, Couple or Buyer Persona --</option>
+                    <optgroup label="🔑 Renter Personas">
+                        <option value="(2.2 * (1 - rent)) + (1.5 * (1 - station_km)) + (1.2 * (1 - cbd_mins)) + (0.8 * commercial)">🎓 Student / Budget Transit Sharehouse</option>
+                        <option value="(1.8 * (1 - couple_avg)) + (1.0 * (1 - couple_diff)) + (1.2 * (1 - rent)) + (1 - crime) + (0.6 * (1 - shops_km))">👫 DINKs Couple (Commute Sweet-Spot + Dining)</option>
+                        <option value="(1.5 * parkland) + (1.2 * (1 - summer_temp)) + (1 - rent) + (1 - crime) + (0.8 * (1 - shops_km))">💻 WFH Lifestyle Renter (Cool, Green & Quiet)</option>
+                        <option value="(2.0 * (1 - station_km)) + (1.5 * (1 - shops_km)) + (1.2 * (1 - cbd_mins)) + (1 - rent)">🚇 Car-Free Walker (Station + Malls Next Door)</option>
+                        <option value="(1.8 * parkland) + (1.4 * (1 - rent)) + (1 - crime) - (0.6 * density)">🐕 Pet-Friendly Renter (Parks + Space + Value)</option>
+                        <option value="(2.0 * (1 - beach_km)) + (1.5 * (1 - summer_temp)) + (1 - rent) + (0.8 * (1 - crime))">🏖️ Coastal Breeze & Beach Renter</option>
+                    </optgroup>
+                    <optgroup label="🏡 Buyer, Family & Investor Personas">
+                        <option value="(1.8 * schools) + (1.6 * (1 - crime)) + (1.2 * parkland) + (1 - buy_price) + (0.6 * (1 - hospital_km))">🎒 Young Family (Schools + Parks + Safety)</option>
+                        <option value="(2.0 * (1 - buy_price)) + (1.4 * (1 - station_km)) + (1.2 * (1 - couple_avg)) + (1 - crime)">🔑 First-Home Buyer Value Catch</option>
+                        <option value="(2.5 * yield) + (1.2 * (1 - buy_price)) + (1.0 * (1 - station_km)) - (0.5 * property_crime)">📈 High-Yield Cashflow Property Investor</option>
+                        <option value="(1.5 * income) + (1.5 * (1 - crime)) + (1.2 * parkland) + (1.2 * (1 - beach_km)) + schools">💎 Blue-Chip Family Prestige</option>
+                        <option value="(1.8 * (1 - hospital_km)) + (1.5 * (1 - shops_km)) + (1.5 * (1 - crime)) + parkland - (0.5 * summer_temp)">🏥 Retiree / Healthcare & Mall Convenience</option>
+                    </optgroup>
+                </select>
+            </div>
+
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+                <span style="font-size:0.71rem;color:var(--text-muted);">Scaling:</span>
+                <select id="norm-mode" class="metric-select" style="width:auto;padding:4px 8px;font-size:0.72rem;" onchange="updateDashboard()">
+                    <option value="winsor" selected>Winsorized Linear (P2–P98)</option>
+                    <option value="percentile">Percentile Rank (0–1)</option>
+                </select>
+                <button class="btn-eval" style="width:auto;padding:5px 12px;" onclick="updateDashboard()">⚡ Evaluate</button>
+            </div>
+        </div>
+
+        <!-- Toggleable Infrastructure Map Overlays -->
+        <div class="card">
+            <div class="card-title">
+                <span>🗺️ Toggleable Map Infrastructure</span>
+                <span style="font-size:0.65rem;color:var(--text-muted);">Click icons for info</span>
+            </div>
+            <div class="overlay-grid">
+                <label class="overlay-toggle">
+                    <input type="checkbox" id="tog-lines" onchange="toggleInfraLayer('lines', this.checked)" />
+                    <span class="dot-swatch" style="background:#f59e0b;"></span>
+                    <span>Rail & Metro Lines</span>
+                </label>
+                <label class="overlay-toggle">
+                    <input type="checkbox" id="tog-stations" onchange="toggleInfraLayer('stations', this.checked)" />
+                    <span class="dot-swatch" style="background:#38bdf8;"></span>
+                    <span>Train/Metro Stations</span>
+                </label>
+                <label class="overlay-toggle">
+                    <input type="checkbox" id="tog-hospitals" onchange="toggleInfraLayer('hospitals', this.checked)" />
+                    <span class="dot-swatch" style="background:#ef4444;"></span>
+                    <span>Hospitals</span>
+                </label>
+                <label class="overlay-toggle">
+                    <input type="checkbox" id="tog-shopping" onchange="toggleInfraLayer('shopping', this.checked)" />
+                    <span class="dot-swatch" style="background:#c084fc;"></span>
+                    <span>Major Shopping</span>
+                </label>
+            </div>
+        </div>
+
+        <!-- Dual Workplace ("Couples Commute") Planner -->
+        <div class="card">
+            <div class="card-title">
+                <span>👫 Dual-Workplace Commute Planner</span>
+                <span style="font-size:0.65rem;color:var(--accent);">GTFS + Road</span>
+            </div>
+
+            <div class="work-row">
+                <div class="work-header">
+                    <span style="color:var(--work1);">● Workplace 1 (Partner A)</span>
+                    <div class="pill-group">
+                        <span class="pill active" id="w1-mode-pt" onclick="setWorkMode(1, 'pt')">🚆 Transit</span>
+                        <span class="pill" id="w1-mode-car" onclick="setWorkMode(1, 'car')">🚗 Drive</span>
+                    </div>
+                </div>
+                <div class="work-controls">
+                    <input type="text" id="w1-input" class="search-box" style="padding:4px 8px;font-size:0.74rem;" value="Sydney (2000)" list="suburb-list" onchange="setWorkFromInput(1)" />
+                    <button class="pin-btn" id="w1-pin-btn" onclick="startMapPick(1)">📍 Pin 1</button>
+                </div>
+            </div>
+
+            <div class="work-row">
+                <div class="work-header">
+                    <span style="color:var(--work2);">● Workplace 2 (Partner B)</span>
+                    <div class="pill-group">
+                        <span class="pill active" id="w2-mode-pt" onclick="setWorkMode(2, 'pt')">🚆 Transit</span>
+                        <span class="pill" id="w2-mode-car" onclick="setWorkMode(2, 'car')">🚗 Drive</span>
+                    </div>
+                </div>
+                <div class="work-controls">
+                    <input type="text" id="w2-input" class="search-box" style="padding:4px 8px;font-size:0.74rem;" value="Parramatta (2150)" list="suburb-list" onchange="setWorkFromInput(2)" />
+                    <button class="pin-btn" id="w2-pin-btn" onclick="startMapPick(2)">📍 Pin 2</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dynamic Property Size & Hard Budget Ceiling Filters -->
+        <div class="card" id="size-filter-card">
+            <div class="card-title">
+                <span>Property Size & Hard Budget Limits</span>
+            </div>
+
+            <div class="pill-group" id="dwelling-pills">
+                <span class="pill active" data-val="all" onclick="setDwelling('all')">All Types</span>
+                <span class="pill" data-val="house" onclick="setDwelling('house')">House</span>
+                <span class="pill" data-val="unit" onclick="setDwelling('unit')">Unit / Apt</span>
+                <span class="pill" data-val="townhouse" onclick="setDwelling('townhouse')">Townhouse</span>
+            </div>
+
+            <div class="pill-group" id="bed-pills">
+                <span class="pill active" data-val="all" onclick="setBeds('all')">All Beds</span>
+                <span class="pill" data-val="1bed" onclick="setBeds('1bed')">1 Bed</span>
+                <span class="pill" data-val="2bed" onclick="setBeds('2bed')">2 Bed</span>
+                <span class="pill" data-val="3bed" onclick="setBeds('3bed')">3 Bed</span>
+                <span class="pill" data-val="4bed" onclick="setBeds('4bed')">4+ Bed</span>
+            </div>
+
+            <div class="pill-group" id="land-pills">
+                <span class="pill active" data-val="all" onclick="setLand('all')">All Land</span>
+                <span class="pill" data-val="small" onclick="setLand('small')">&lt; 400m²</span>
+                <span class="pill" data-val="med" onclick="setLand('med')">400–700m²</span>
+                <span class="pill" data-val="large" onclick="setLand('large')">700m²+</span>
+            </div>
+
+            <div style="font-size:0.69rem;color:var(--text-muted);margin-top:2px;">
+                Optional Hard Ceilings (Dims out suburbs above limit):
+            </div>
+            <div class="budget-grid">
+                <div class="budget-box">
+                    <label>Max Rent ($/wk)</label>
+                    <input type="number" id="max-rent-input" placeholder="No limit" step="50" onchange="updateDashboard()" />
+                </div>
+                <div class="budget-box">
+                    <label>Max Buy ($M)</label>
+                    <input type="number" id="max-buy-input" placeholder="No limit" step="0.2" onchange="updateDashboard()" />
+                </div>
+                <div class="budget-box">
+                    <label>Max Commute (m)</label>
+                    <input type="number" id="max-commute-input" placeholder="No limit" step="5" onchange="updateDashboard()" />
+                </div>
+            </div>
+
+            <label style="font-size:0.74rem;display:flex;align-items:center;gap:7px;cursor:pointer;margin-top:2px;">
+                <input type="checkbox" id="hide-low-pop" checked onchange="updateDashboard()" />
+                Hide non-residential / industrial zones (Pop &lt; 300)
+            </label>
+        </div>
+
+        <!-- Top 10 Suburbs Leaderboard -->
+        <div class="card">
+            <div class="card-title">
+                <span id="leaderboard-title">Top 10 Suburbs</span>
+                <span class="pill" style="padding:2px 6px;font-size:0.65rem;" onclick="toggleSortOrder()" id="sort-dir-btn">High → Low</span>
+            </div>
+            <ul class="leaderboard-list" id="leaderboard"></ul>
+        </div>
+    </aside>
+
+    <!-- MAP & FLOATING UI -->
+    <main id="map-wrapper">
+        <div id="map"></div>
+
+        <!-- Color Scale Legend -->
+        <div class="map-legend">
+            <div class="legend-title" id="legend-title">Loading Suburbs...</div>
+            <div class="legend-bar" id="legend-bar"></div>
+            <div class="legend-labels">
+                <span id="legend-min">-</span>
+                <span id="legend-med">-</span>
+                <span id="legend-max">-</span>
+            </div>
+        </div>
+
+        <!-- Right Click-to-Inspect & Suburb Comparison Drawer -->
+        <section id="inspector">
+            <div class="insp-top-bar">
+                <div class="mode-tabs" style="flex:1;">
+                    <button class="mode-tab active" id="insp-tab-single" onclick="setInspectorTab('single')">Suburb Profile</button>
+                    <button class="mode-tab" id="insp-tab-compare" onclick="setInspectorTab('compare')">Compare (<span id="comp-count">0</span>/4)</button>
+                </div>
+                <button class="close-btn" onclick="closeInspector()">✕</button>
+            </div>
+
+            <!-- TAB 1: SINGLE SUBURB PROFILE -->
+            <div id="insp-single-pane">
+                <div class="inspector-header">
+                    <div>
+                        <h2 id="insp-name">Suburb Name</h2>
+                        <div class="badge-row" id="insp-badges"></div>
+                    </div>
+                    <button class="pin-btn" id="pin-compare-btn" onclick="toggleCompareCurrent()">+ Pin to Compare</button>
+                </div>
+
+                <div class="stat-grid" id="insp-stats"></div>
+
+                <div class="chart-container">
+                    <div style="font-size:0.7rem;color:var(--text-muted);margin-bottom:5px;text-align:center;font-weight:600;">
+                        LIVABILITY PERCENTILE PROFILE VS SYDNEY MEDIAN (0–100)
+                    </div>
+                    <canvas id="radarChart" height="200"></canvas>
+                </div>
+            </div>
+
+            <!-- TAB 2: MULTI-SUBURB COMPARISON -->
+            <div id="insp-compare-pane" style="display:none;">
+                <div style="font-size:0.72rem;color:var(--text-muted);margin-bottom:6px;">
+                    Pin up to 4 suburbs (or <b>Shift + Click</b> suburbs on the map):
+                </div>
+                <div class="comp-chips" id="comp-chips"></div>
+
+                <div class="chart-container">
+                    <canvas id="compRadarChart" height="210"></canvas>
+                </div>
+
+                <table class="comp-table" id="comp-table"></table>
+            </div>
+        </section>
+    </main>
+
+    <!-- Leaflet, Leaflet Draw, Turf.js & Chart.js -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <script>
+        // =========================================================================
+        // 1. INITIALIZE LEAFLET MAP, CUSTOM Z-INDEX PANES & DRAW CONTROLS
+        // =========================================================================
+        const darkCanvas = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+            maxZoom: 18,
+            attribution: '© Esri, OpenStreetMap, ABS, BOCSAR, TfNSW, Open-Meteo'
+        });
+        const satelliteMap = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            maxZoom: 18,
+            attribution: 'Tiles © Esri'
+        });
+
+        const map = L.map('map', {
+            center: [-33.8688, 151.08],
+            zoom: 10,
+            preferCanvas: true,
+            layers: [darkCanvas]
+        });
+
+        // Create strict Z-Index Panes so Infrastructure Lines & Points always stay above Suburb Polygons
+        map.createPane('suburbPane');
+        map.getPane('suburbPane').style.zIndex = 400;
+        map.createPane('infraLinePane');
+        map.getPane('infraLinePane').style.zIndex = 450;
+        map.createPane('infraPointPane');
+        map.getPane('infraPointPane').style.zIndex = 480;
+
+        L.control.layers({
+            "🌑 Dark Gray Canvas": darkCanvas,
+            "🛰️ Esri Satellite": satelliteMap
+        }, null, { position: 'topleft' }).addTo(map);
+
+        // Initialize Leaflet Draw for Custom Region Survey & CSV Export
+        const drawnItems = new L.FeatureGroup();
+        map.addLayer(drawnItems);
+        const drawControl = new L.Control.Draw({
+            position: 'topleft',
+            draw: {
+                polygon: { allowIntersection: false, shapeOptions: { color: '#38bdf8', weight: 2 } },
+                rectangle: { shapeOptions: { color: '#38bdf8', weight: 2 } },
+                circle: false, circlemarker: false, marker: false, polyline: false
+            },
+            edit: { featureGroup: drawnItems, edit: false }
+        });
+        map.addControl(drawControl);
+
+        // =========================================================================
+        // 2. APPLICATION STATE & INFRASTRUCTURE OVERLAY GROUPS
+        // =========================================================================
+        let geojsonData = null;
+        let stationMatrixData = null;
+        let infraData = null;
+        let geojsonLayer = null;
+
+        const infraLayers = {
+            lines: L.layerGroup(),
+            stations: L.layerGroup(),
+            hospitals: L.layerGroup(),
+            shopping: L.layerGroup(),
+            schools: L.layerGroup()
+        };
+
+        let currentMode = 'single';
+        let inspectorTab = 'single';
+        let filterDwelling = 'all';
+        let filterBeds = 'all';
+        let filterLand = 'all';
+        let sortDescending = true;
+
+        let radarChartInstance = null;
+        let compRadarInstance = null;
+        let selectedLayer = null;
+        let comparedSuburbs = [];
+        let lastExportRows = [];
+
+        let pickingWorkplace = null;
+        const workplaces = {
+            1: { name: "Sydney CBD", lat: -33.8678, lon: 151.2093, mode: 'pt', marker: null, nearestStationIdx: 0, stationDistKm: 0 },
+            2: { name: "Parramatta", lat: -33.8150, lon: 151.0011, mode: 'pt', marker: null, nearestStationIdx: 0, stationDistKm: 0 }
+        };
+        const suburbStationLink = {};
+        const normStore = { winsor: {}, percentile: {} };
+        const activeScores = {};
+
+        function haversineKm(lat1, lon1, lat2, lon2) {
+            const R = 6371.0;
+            const dLat = (lat2 - lat1) * Math.PI / 180.0;
+            const dLon = (lon2 - lon1) * Math.PI / 180.0;
+            const a = Math.sin(dLat / 2) ** 2 +
+                      Math.cos(lat1 * Math.PI / 180.0) * Math.cos(lat2 * Math.PI / 180.0) * Math.sin(dLon / 2) ** 2;
+            return 2 * R * Math.asin(Math.sqrt(a));
+        }
+
+        function crossesHarbourEastOfBridge(lat1, lon1, lat2, lon2) {
+            if (lon1 < 151.14 && lon2 < 151.14) return false;
+            const harborLat = -33.852;
+            return (lat1 > harborLat && lat2 < harborLat) || (lat1 < harborLat && lat2 > harborLat);
+        }
+
+        function createWorkMarker(id, lat, lon, label) {
+            const color = id === 1 ? '#f43f5e' : '#a855f7';
+            if (workplaces[id].marker) map.removeLayer(workplaces[id].marker);
+            const icon = L.divIcon({
+                className: '',
+                html: `<div style="background:${color};color:#fff;font-weight:700;font-size:11px;padding:3px 7px;border-radius:12px;border:2px solid #fff;box-shadow:0 3px 10px rgba(0,0,0,0.6);white-space:nowrap;">W${id}: ${label}</div>`,
+                iconAnchor: [28, 14]
+            });
+            workplaces[id].marker = L.marker([lat, lon], { icon }).addTo(map);
+        }
+
+        function linkStationsToSuburbsAndWorkplaces() {
+            if (!geojsonData || !stationMatrixData) return;
+            const stations = stationMatrixData.stations;
+            geojsonData.features.forEach(f => {
+                const p = f.properties;
+                const sLat = p.cent_lat || -33.8688;
+                const sLon = p.cent_lon || 151.2093;
+                let bestIdx = 0, bestDist = 9999;
+                for (let i = 0; i < stations.length; i++) {
+                    const d = haversineKm(sLat, sLon, stations[i].lat, stations[i].lon);
+                    if (d < bestDist) { bestDist = d; bestIdx = i; }
+                }
+                suburbStationLink[p.SAL_CODE21] = { stationIdx: bestIdx, distKm: bestDist };
+            });
+
+            updateWorkplaceStationLink(1);
+            updateWorkplaceStationLink(2);
+            createWorkMarker(1, workplaces[1].lat, workplaces[1].lon, workplaces[1].name);
+            createWorkMarker(2, workplaces[2].lat, workplaces[2].lon, workplaces[2].name);
+            recomputeDualCommutes();
+        }
+
+        function updateWorkplaceStationLink(id) {
+            if (!stationMatrixData) return;
+            const stations = stationMatrixData.stations;
+            const w = workplaces[id];
+            let bestIdx = 0, bestDist = 9999;
+            for (let i = 0; i < stations.length; i++) {
+                const d = haversineKm(w.lat, w.lon, stations[i].lat, stations[i].lon);
+                if (d < bestDist) { bestDist = d; bestIdx = i; }
+            }
+            w.nearestStationIdx = bestIdx;
+            w.stationDistKm = bestDist;
+        }
+
+        function computeSinglePartnerCommute(suburbProps, workId) {
+            const w = workplaces[workId];
+            const sLat = suburbProps.cent_lat;
+            const sLon = suburbProps.cent_lon;
+            if (!sLat || !sLon) return null;
+
+            const directKm = haversineKm(sLat, sLon, w.lat, w.lon);
+            const roadKm = directKm * 1.32;
+            const harborPenalty = crossesHarbourEastOfBridge(sLat, sLon, w.lat, w.lon) ? 11.0 : 0.0;
+            const driveMins = Math.round(5.0 + (roadKm / 31.0) * 60.0 + harborPenalty);
+
+            if (w.mode === 'car' || !stationMatrixData) return driveMins;
+
+            const link = suburbStationLink[suburbProps.SAL_CODE21];
+            if (!link) return driveMins;
+            const railMins = stationMatrixData.matrix[link.stationIdx][w.nearestStationIdx];
+            if (railMins === undefined || railMins >= 900) return driveMins;
+
+            const accessMins = Math.max(3.0, link.distKm * 8.0);
+            const egressMins = Math.max(3.0, w.stationDistKm * 11.0);
+            const ptMins = Math.round(accessMins + railMins + egressMins);
+            const localDirectMins = Math.round(4.0 + directKm * 9.5);
+            return Math.min(ptMins, localDirectMins);
+        }
+
+        function recomputeDualCommutes() {
+            if (!geojsonData) return;
+            geojsonData.features.forEach(f => {
+                const p = f.properties;
+                const w1 = computeSinglePartnerCommute(p, 1);
+                const w2 = computeSinglePartnerCommute(p, 2);
+                p.work1_mins  = w1;
+                p.work2_mins  = w2;
+                p.couple_avg  = (w1 !== null && w2 !== null) ? Math.round((w1 + w2) / 2) : w1;
+                p.couple_diff = (w1 !== null && w2 !== null) ? Math.abs(w1 - w2) : 0;
+            });
+            ['work1_mins', 'work2_mins', 'couple_avg', 'couple_diff'].forEach(col => {
+                normalizeSingleColumn(geojsonData.features, col);
+            });
+        }
+
+        function setWorkMode(id, mode) {
+            workplaces[id].mode = mode;
+            document.getElementById(`w${id}-mode-pt`).classList.toggle('active', mode === 'pt');
+            document.getElementById(`w${id}-mode-car`).classList.toggle('active', mode === 'car');
+            recomputeDualCommutes();
+            updateDashboard();
+            if (selectedLayer) inspectSuburb(selectedLayer);
+            if (inspectorTab === 'compare') renderComparisonView();
+        }
+
+        function setWorkFromInput(id) {
+            const val = document.getElementById(`w${id}-input`).value.trim().toLowerCase();
+            if (!val || !geojsonData) return;
+            const match = geojsonData.features.find(f =>
+                `${f.properties.SAL_NAME21} (${f.properties.postcode || ''})`.toLowerCase().includes(val) ||
+                f.properties.SAL_NAME21.toLowerCase() === val ||
+                String(f.properties.postcode) === val
+            );
+            if (match) {
+                workplaces[id].lat = match.properties.cent_lat;
+                workplaces[id].lon = match.properties.cent_lon;
+                workplaces[id].name = match.properties.SAL_NAME21;
+                updateWorkplaceStationLink(id);
+                createWorkMarker(id, workplaces[id].lat, workplaces[id].lon, workplaces[id].name);
+                recomputeDualCommutes();
+                updateDashboard();
+                if (selectedLayer) inspectSuburb(selectedLayer);
+                if (inspectorTab === 'compare') renderComparisonView();
+            }
+        }
+
+        function startMapPick(id) {
+            pickingWorkplace = (pickingWorkplace === id) ? null : id;
+            document.getElementById('w1-pin-btn').classList.toggle('picking', pickingWorkplace === 1);
+            document.getElementById('w2-pin-btn').classList.toggle('picking', pickingWorkplace === 2);
+        }
+
+        // =========================================================================
+        // 3. BUILD TOGGLEABLE INFRASTRUCTURE OVERLAYS
+        // =========================================================================
+        function buildInfrastructureOverlays(data) {
+            if (!data) return;
+
+            // 1. Rail, Metro & Light Rail Lines
+            if (data.rail_lines) {
+                L.geoJSON(data.rail_lines, {
+                    pane: 'infraLinePane',
+                    style: (feat) => ({
+                        color: feat.properties.color || '#f59e0b',
+                        weight: feat.properties.mode === 'Sydney Metro' ? 3.5 : 2.5,
+                        opacity: 0.9
+                    }),
+                    onEachFeature: (feat, layer) => {
+                        layer.bindTooltip(`<b>🚆 ${feat.properties.name}</b><br/>${feat.properties.detail} (${feat.properties.mode})`, {
+                            sticky: true, className: 'suburb-tooltip'
+                        });
+                    }
+                }).addTo(infraLayers.lines);
+            }
+
+            // 2. Train/Metro/Light-Rail Stations
+            (data.stations || []).forEach(st => {
+                L.circleMarker([st.lat, st.lon], {
+                    pane: 'infraPointPane',
+                    radius: 5,
+                    fillColor: '#38bdf8',
+                    color: '#0f172a',
+                    weight: 1.5,
+                    fillOpacity: 0.95
+                }).bindTooltip(`<b>🚉 ${st.name} Station</b>`, { className: 'suburb-tooltip' })
+                  .addTo(infraLayers.stations);
+            });
+
+            // 3. Hospitals
+            (data.hospitals || []).forEach(h => {
+                L.circleMarker([h.lat, h.lon], {
+                    pane: 'infraPointPane',
+                    radius: 6.5,
+                    fillColor: '#ef4444',
+                    color: '#ffffff',
+                    weight: 1.8,
+                    fillOpacity: 0.95
+                }).bindTooltip(`<b>🏥 ${h.name}</b><br/>Hospital / Medical Facility`, { className: 'suburb-tooltip' })
+                  .addTo(infraLayers.hospitals);
+            });
+
+            // 4. Major Shopping Centres / Malls
+            (data.shopping || []).forEach(s => {
+                L.circleMarker([s.lat, s.lon], {
+                    pane: 'infraPointPane',
+                    radius: 6,
+                    fillColor: '#c084fc',
+                    color: '#0f172a',
+                    weight: 1.5,
+                    fillOpacity: 0.95
+                }).bindTooltip(`<b>🛍️ ${s.name}</b><br/>Major Shopping Centre`, { className: 'suburb-tooltip' })
+                  .addTo(infraLayers.shopping);
+            });
+
+            // 5. Schools
+            (data.schools || []).forEach(sc => {
+                L.circleMarker([sc.lat, sc.lon], {
+                    pane: 'infraPointPane',
+                    radius: 3.8,
+                    fillColor: '#22c55e',
+                    color: '#0f172a',
+                    weight: 1,
+                    fillOpacity: 0.85
+                }).bindTooltip(`<b>🏫 ${sc.name}</b>`, { className: 'suburb-tooltip' })
+                  .addTo(infraLayers.schools);
+            });
+        }
+
+        function toggleInfraLayer(key, show) {
+            const grp = infraLayers[key];
+            if (!grp) return;
+            if (show) map.addLayer(grp);
+            else map.removeLayer(grp);
+        }
+
+        // =========================================================================
+        // 4. METRIC DEFINITIONS & NORMALIZATION
+        // =========================================================================
+        function resolveDynamicColumn(baseToken) {
+            if (baseToken === 'rent') {
+                if (filterDwelling === 'townhouse') return 'rent_townhouse_med';
+                if (filterBeds === 'all') {
+                    return filterDwelling === 'all' ? 'rent_all_med' : `rent_${filterDwelling}_med`;
+                } else {
+                    const dt = (filterDwelling === 'house' || filterDwelling === 'unit') ? filterDwelling : 'all';
+                    return `rent_${dt}_${filterBeds}_med`;
+                }
+            }
+            if (baseToken === 'buy_price') {
+                if (filterDwelling === 'unit' || filterDwelling === 'townhouse') return 'buy_unit_med';
+                if (filterDwelling === 'house') {
+                    return filterLand === 'all' ? 'buy_house_med' : `buy_house_${filterLand}_med`;
+                }
+                return filterLand === 'all' ? 'buy_all_med' : `buy_house_${filterLand}_med`;
+            }
+            if (baseToken === 'yield') {
+                if (filterDwelling === 'house') return 'yield_house_pct';
+                if (filterDwelling === 'unit' || filterDwelling === 'townhouse') return 'yield_unit_pct';
+                return 'yield_all_pct';
+            }
+            return baseToken;
+        }
+
+        const metricMeta = {
+            rent:               { label: "Median Weekly Rent", unit: "$/wk", prefix: "$", invert: true },
+            buy_price:          { label: "Median Buy Price", unit: "", prefix: "$", invert: true },
+            house_price_per_m2: { label: "House Land Price / m²", unit: "/m²", prefix: "$", invert: true },
+            yield:              { label: "Gross Rental Yield", unit: "%", prefix: "", invert: false },
+            price_to_income:    { label: "Price-to-Income Ratio", unit: "x", prefix: "", invert: true },
+            cbd_commute_mins:   { label: "Peak CBD Commute", unit: " mins", prefix: "", invert: true },
+            work1_mins:         { label: "Workplace 1 Commute", unit: " mins", prefix: "", invert: true },
+            work2_mins:         { label: "Workplace 2 Commute", unit: " mins", prefix: "", invert: true },
+            couple_avg:         { label: "Couples Avg Commute", unit: " mins", prefix: "", invert: true },
+            couple_diff:        { label: "Couples Commute Diff", unit: " mins", prefix: "", invert: true },
+            station_dist_km:    { label: "Nearest Station Distance", unit: " km", prefix: "", invert: true },
+            schools_count:      { label: "Schools within 2km", unit: " schools", prefix: "", invert: false },
+            shopping_dist_km:   { label: "Major Shopping Distance", unit: " km", prefix: "", invert: true },
+            hospital_dist_km:   { label: "Nearest Hospital Distance", unit: " km", prefix: "", invert: true },
+            beach_dist_km:      { label: "Coastal Beach Distance", unit: " km", prefix: "", invert: true },
+            summer_max_temp:    { label: "Summer Avg High Temp", unit: "°C", prefix: "", invert: true },
+            winter_min_temp:    { label: "Winter Avg Low Temp", unit: "°C", prefix: "", invert: false },
+            days_over_32c:      { label: "Extreme Heat Days (≥32°C)", unit: " days", prefix: "", invert: true },
+            temp_swing:         { label: "Seasonal Temp Swing", unit: "°C", prefix: "", invert: true },
+            crime_total_rate:   { label: "Residential Crime Rate", unit: " /1k", prefix: "", invert: true },
+            crime_violent_rate: { label: "Residential Violent Crime", unit: " /1k", prefix: "", invert: true },
+            crime_property_rate:{ label: "Residential Property Crime", unit: " /1k", prefix: "", invert: true },
+            crime_5yr_trend_pct:{ label: "5-Year Crime Trend", unit: "%", prefix: "", invert: true },
+            parkland_pct:       { label: "Parkland Area", unit: "%", prefix: "", invert: false },
+            commercial_pct:     { label: "Commercial Area", unit: "%", prefix: "", invert: false },
+            pop_density_sqkm:   { label: "Population Density", unit: " /km²", prefix: "", invert: false },
+            hhd_income_weekly:  { label: "Weekly Household Income", unit: "/wk", prefix: "$", invert: false }
+        };
+
+        function formatValue(val, metaKey) {
+            if (val === null || val === undefined || isNaN(val)) return "No Data";
+            if (metaKey === 'formula') return val.toFixed(2);
+            const m = metricMeta[metaKey] || { prefix: "", unit: "" };
+            if (metaKey === 'buy_price') {
+                return val >= 1000000
+                    ? `$${(val / 1000000).toFixed(2)}M`
+                    : `$${Math.round(val).toLocaleString()}`;
+            }
+            const formattedNum = Number.isInteger(val) || Math.abs(val) >= 100
+                ? Math.round(val).toLocaleString()
+                : val.toFixed(1);
+            return `${m.prefix}${formattedNum}${m.unit}`;
+        }
+
+        function normalizeSingleColumn(features, col) {
+            const validPairs = [];
+            features.forEach(f => {
+                const v = Number(f.properties[col]);
+                const pop = Number(f.properties.population) || 0;
+                if (f.properties[col] !== null && f.properties[col] !== undefined && !isNaN(v) && pop >= 100) {
+                    validPairs.push({ code: f.properties.SAL_CODE21, val: v });
+                }
+            });
+            if (validPairs.length < 5) return;
+
+            validPairs.sort((a, b) => a.val - b.val);
+            const vals = validPairs.map(p => p.val);
+            const p2  = vals[Math.floor(vals.length * 0.02)];
+            const p98 = vals[Math.floor(vals.length * 0.98)];
+            const span = (p98 - p2) || 1;
+
+            normStore.winsor[col] = {};
+            normStore.percentile[col] = {};
+
+            features.forEach(f => {
+                const raw = f.properties[col];
+                const code = f.properties.SAL_CODE21;
+                if (raw === null || raw === undefined || isNaN(Number(raw))) {
+                    normStore.winsor[col][code] = null;
+                    normStore.percentile[col][code] = null;
+                } else {
+                    const v = Number(raw);
+                    normStore.winsor[col][code] = Math.max(0, Math.min(1, (v - p2) / span));
+                }
+            });
+
+            validPairs.forEach((p, idx) => {
+                normStore.percentile[col][p.code] = idx / (validPairs.length - 1);
+            });
+        }
+
+        function precomputeNormalizations(features) {
+            const allKeys = new Set();
+            features.forEach(f => Object.keys(f.properties).forEach(k => allKeys.add(k)));
+            allKeys.forEach(col => {
+                if (['SAL_CODE21', 'SAL_NAME21', 'suburb_clean', 'postcode', 'nearest_station'].includes(col)) return;
+                normalizeSingleColumn(features, col);
+            });
+        }
+
+        // =========================================================================
+        // 5. LOAD GEOJSON, GTFS MATRIX & INFRASTRUCTURE OVERLAYS
+        // =========================================================================
+        Promise.all([
+            fetch('./sydney_suburbs.geojson').then(r => r.json()),
+            fetch('./station_matrix.json').then(r => r.json()).catch(() => null),
+            fetch('./sydney_infrastructure.json').then(r => r.json()).catch(() => null)
+        ]).then(([geoData, matrixData, infData]) => {
+            geojsonData = geoData;
+            stationMatrixData = matrixData;
+            infraData = infData;
+            buildSearchAutocomplete(geoData.features);
+            precomputeNormalizations(geoData.features);
+            linkStationsToSuburbsAndWorkplaces();
+            buildInfrastructureOverlays(infData);
+            renderGeoJsonLayer();
+            updateDashboard();
+        }).catch(err => {
+            console.error("Failed to load data:", err);
+            document.getElementById('legend-title').innerText = "Error: Run python -m http.server 8000";
+        });
+
+        function buildSearchAutocomplete(features) {
+            const datalist = document.getElementById('suburb-list');
+            const sorted = [...features].sort((a, b) =>
+                a.properties.SAL_NAME21.localeCompare(b.properties.SAL_NAME21)
+            );
+            sorted.forEach(f => {
+                const opt = document.createElement('option');
+                opt.value = `${f.properties.SAL_NAME21} (${f.properties.postcode || ''})`;
+                datalist.appendChild(opt);
+            });
+
+            document.getElementById('suburb-search').addEventListener('change', function() {
+                const q = this.value.trim().toLowerCase();
+                if (!q) return;
+                const match = geojsonData.features.find(f =>
+                    `${f.properties.SAL_NAME21} (${f.properties.postcode || ''})`.toLowerCase().includes(q) ||
+                    String(f.properties.postcode) === q
+                );
+                if (match && geojsonLayer) {
+                    geojsonLayer.eachLayer(layer => {
+                        if (layer.feature.properties.SAL_CODE21 === match.properties.SAL_CODE21) {
+                            map.fitBounds(layer.getBounds(), { maxZoom: 13 });
+                            inspectSuburb(layer);
+                        }
+                    });
+                }
+            });
+        }
+
+        // =========================================================================
+        // 6. COLOR SCALE, BUDGET CONSTRAINTS & FORMULA ENGINE
+        // =========================================================================
+        function interpolateColor(t, invert = false) {
+            if (t === null || t === undefined || isNaN(t)) return '#1e293b';
+            let x = Math.max(0, Math.min(1, t));
+            if (invert) x = 1 - x;
+
+            const stops = [
+                [239, 68, 68],   // Red
+                [249, 115, 22],  // Orange
+                [234, 179, 8],   // Amber
+                [34, 197, 94],   // Emerald
+                [56, 189, 248]   // Cyan
+            ];
+            const scaled = x * (stops.length - 1);
+            const i = Math.min(stops.length - 2, Math.floor(scaled));
+            const f = scaled - i;
+            const r = Math.round(stops[i][0] + f * (stops[i+1][0] - stops[i][0]));
+            const g = Math.round(stops[i][1] + f * (stops[i+1][1] - stops[i][1]));
+            const b = Math.round(stops[i][2] + f * (stops[i+1][2] - stops[i][2]));
+            return `rgb(${r},${g},${b})`;
+        }
+
+        function compileUserFormula(exprStr) {
+            const cleaned = exprStr.replace(/\^/g, '**');
+            const fnBody = `
+                const {
+                    rent, buy_price, yield,
+                    work1_mins, work2_mins, couple_avg, couple_diff,
+                    cbd_mins, station_km, beach_km,
+                    schools, shops_km, hospital_km,
+                    summer_temp, winter_temp, hot_days,
+                    crime, violent_crime, property_crime,
+                    parkland, commercial, income, density
+                } = vars;
+                const { sqrt, abs, min, max, log, pow } = Math;
+                return (${cleaned});
+            `;
+            return new Function('vars', fnBody);
+        }
+
+        function updateDashboard() {
+            if (!geojsonData || !geojsonLayer) return;
+
+            const hideLowPop = document.getElementById('hide-low-pop').checked;
+            const maxRentVal = parseFloat(document.getElementById('max-rent-input').value);
+            const maxBuyValM = parseFloat(document.getElementById('max-buy-input').value);
+            const maxCommVal = parseFloat(document.getElementById('max-commute-input').value);
+
+            const normType = document.getElementById('norm-mode').value;
+            const nTable = normStore[normType];
+            const metricKey = document.getElementById('metric-select').value;
+            const actualCol = resolveDynamicColumn(metricKey);
+
+            document.getElementById('active-col-badge').innerText = actualCol;
+            const errBox = document.getElementById('formula-error');
+            errBox.style.display = 'none';
+
+            let formulaFn = null;
+            if (currentMode === 'formula') {
+                const rawExpr = document.getElementById('formula-input').value;
+                try {
+                    formulaFn = compileUserFormula(rawExpr);
+                    formulaFn({
+                        rent:0.5, buy_price:0.5, yield:0.5,
+                        work1_mins:0.5, work2_mins:0.5, couple_avg:0.5, couple_diff:0.5,
+                        cbd_mins:0.5, station_km:0.5, beach_km:0.5,
+                        schools:0.5, shops_km:0.5, hospital_km:0.5,
+                        summer_temp:0.5, winter_temp:0.5, hot_days:0.5,
+                        crime:0.5, violent_crime:0.5, property_crime:0.5,
+                        parkland:0.5, commercial:0.5, income:0.5, density:0.5
+                    });
+                } catch (e) {
+                    errBox.innerText = `Formula Syntax Error: ${e.message}`;
+                    errBox.style.display = 'block';
+                    return;
+                }
+            }
+
+            const rentCol  = resolveDynamicColumn('rent');
+            const buyCol   = resolveDynamicColumn('buy_price');
+            const yieldCol = resolveDynamicColumn('yield');
+            const validValues = [];
+
+            geojsonData.features.forEach(f => {
+                const p = f.properties;
+                const code = p.SAL_CODE21;
+                const pop = Number(p.population) || 0;
+
+                if (hideLowPop && pop < 300) {
+                    activeScores[code] = null;
+                    return;
+                }
+
+                // Check Hard Budget & Commute Ceilings
+                if (!isNaN(maxRentVal) && maxRentVal > 0 && Number(p[rentCol]) > maxRentVal) {
+                    activeScores[code] = null; return;
+                }
+                if (!isNaN(maxBuyValM) && maxBuyValM > 0 && Number(p[buyCol]) > (maxBuyValM * 1000000)) {
+                    activeScores[code] = null; return;
+                }
+                if (!isNaN(maxCommVal) && maxCommVal > 0 && Number(p.couple_avg) > maxCommVal) {
+                    activeScores[code] = null; return;
+                }
+
+                if (currentMode === 'single') {
+                    const v = p[actualCol];
+                    if (v === null || v === undefined || isNaN(Number(v))) {
+                        activeScores[code] = null;
+                    } else {
+                        activeScores[code] = Number(v);
+                        validValues.push(Number(v));
+                    }
+                } else {
+                    const getN = (c) => {
+                        const val = nTable[c] ? nTable[c][code] : null;
+                        return (val === null || val === undefined || isNaN(val)) ? null : val;
+                    };
+
+                    const exprText = document.getElementById('formula-input').value;
+                    if (exprText.includes('rent') && getN(rentCol) === null) {
+                        activeScores[code] = null; return;
+                    }
+                    if (exprText.includes('buy_price') && getN(buyCol) === null) {
+                        activeScores[code] = null; return;
+                    }
+
+                    const vars = {
+                        rent:           getN(rentCol) ?? 0.5,
+                        buy_price:      getN(buyCol) ?? 0.5,
+                        yield:          getN(yieldCol) ?? 0.5,
+                        work1_mins:     getN('work1_mins') ?? 0.5,
+                        work2_mins:     getN('work2_mins') ?? 0.5,
+                        couple_avg:     getN('couple_avg') ?? 0.5,
+                        couple_diff:    getN('couple_diff') ?? 0.5,
+                        cbd_mins:       getN('cbd_commute_mins') ?? 0.5,
+                        station_km:     getN('station_dist_km') ?? 0.5,
+                        beach_km:       getN('beach_dist_km') ?? 0.5,
+                        schools:        getN('schools_count') ?? 0.5,
+                        shops_km:       getN('shopping_dist_km') ?? 0.5,
+                        hospital_km:    getN('hospital_dist_km') ?? 0.5,
+                        summer_temp:    getN('summer_max_temp') ?? 0.5,
+                        winter_temp:    getN('winter_min_temp') ?? 0.5,
+                        hot_days:       getN('days_over_32c') ?? 0.5,
+                        crime:          getN('crime_total_rate') ?? 0.5,
+                        violent_crime:  getN('crime_violent_rate') ?? 0.5,
+                        property_crime: getN('crime_property_rate') ?? 0.5,
+                        parkland:       getN('parkland_pct') ?? 0.5,
+                        commercial:     getN('commercial_pct') ?? 0.5,
+                        income:         getN('hhd_income_weekly') ?? 0.5,
+                        density:        getN('pop_density_sqkm') ?? 0.5
+                    };
+
+                    const res = formulaFn(vars);
+                    if (res === null || isNaN(res) || !isFinite(res)) {
+                        activeScores[code] = null;
+                    } else {
+                        activeScores[code] = Number(res);
+                        validValues.push(Number(res));
+                    }
+                }
+            });
+
+            validValues.sort((a, b) => a - b);
+            const p2  = validValues.length ? validValues[Math.floor(validValues.length * 0.02)] : 0;
+            const med = validValues.length ? validValues[Math.floor(validValues.length * 0.50)] : 0.5;
+            const p98 = validValues.length ? validValues[Math.floor(validValues.length * 0.98)] : 1;
+            const span = (p98 - p2) || 1;
+
+            const isInverted = (currentMode === 'single') ? (metricMeta[metricKey]?.invert || false) : false;
+
+            geojsonLayer.eachLayer(layer => {
+                const code = layer.feature.properties.SAL_CODE21;
+                const val = activeScores[code];
+                const isSelected = selectedLayer && selectedLayer.feature.properties.SAL_CODE21 === code;
+                const isCompared = comparedSuburbs.some(f => f.properties.SAL_CODE21 === code);
+
+                if (val === null || val === undefined) {
+                    layer.setStyle({
+                        fillColor: '#1e293b',
+                        fillOpacity: 0.18,
+                        color: '#334155',
+                        weight: 0.5
+                    });
+                } else {
+                    const normT = Math.max(0, Math.min(1, (val - p2) / span));
+                    layer.setStyle({
+                        fillColor: interpolateColor(normT, isInverted),
+                        fillOpacity: 0.76,
+                        color: isSelected ? '#ffffff' : (isCompared ? '#f59e0b' : '#0f172a'),
+                        weight: (isSelected || isCompared) ? 2.4 : 0.8
+                    });
+                }
+            });
+
+            const metaKey = currentMode === 'single' ? metricKey : 'formula';
+            const titleText = currentMode === 'single'
+                ? `${metricMeta[metricKey]?.label || actualCol} (${validValues.length} suburbs)`
+                : `Custom Formula Score (${validValues.length} suburbs)`;
+            document.getElementById('legend-title').innerText = titleText;
+            document.getElementById('legend-min').innerText = formatValue(p2, metaKey);
+            document.getElementById('legend-med').innerText = `Med: ${formatValue(med, metaKey)}`;
+            document.getElementById('legend-max').innerText = formatValue(p98, metaKey);
+
+            const gradColors = isInverted
+                ? 'linear-gradient(90deg, #38bdf8, #22c55e, #eab308, #f97316, #ef4444)'
+                : 'linear-gradient(90deg, #ef4444, #f97316, #eab308, #22c55e, #38bdf8)';
+            document.getElementById('legend-bar').style.background = gradColors;
+
+            updateLeaderboard(metaKey);
+        }
+
+        function updateLeaderboard(metaKey) {
+            const listEl = document.getElementById('leaderboard');
+            listEl.innerHTML = '';
+
+            const ranked = [];
+            geojsonData.features.forEach(f => {
+                const code = f.properties.SAL_CODE21;
+                const val = activeScores[code];
+                if (val !== null && val !== undefined && !isNaN(val)) {
+                    ranked.push({ feature: f, val });
+                }
+            });
+
+            ranked.sort((a, b) => sortDescending ? (b.val - a.val) : (a.val - b.val));
+            ranked.slice(0, 10).forEach((item, idx) => {
+                const li = document.createElement('li');
+                li.className = 'leaderboard-item';
+                li.innerHTML = `
+                    <div>
+                        <span class="leaderboard-rank">#${idx + 1}</span>
+                        <span>${item.feature.properties.SAL_NAME21}</span>
+                    </div>
+                    <span class="leaderboard-val">${formatValue(item.val, metaKey)}</span>
+                `;
+                li.onclick = () => {
+                    geojsonLayer.eachLayer(layer => {
+                        if (layer.feature.properties.SAL_CODE21 === item.feature.properties.SAL_CODE21) {
+                            map.fitBounds(layer.getBounds(), { maxZoom: 13 });
+                            inspectSuburb(layer);
+                        }
+                    });
+                };
+                listEl.appendChild(li);
+            });
+        }
+
+        // =========================================================================
+        // 7. RENDER GEOJSON LAYER, INSPECTOR & TURF.JS POLYGON CSV EXPORTER
+        // =========================================================================
+        function renderGeoJsonLayer() {
+            geojsonLayer = L.geoJSON(geojsonData, {
+                pane: 'suburbPane',
+                onEachFeature: (feature, layer) => {
+                    layer.on({
+                        mouseover: (e) => {
+                            const l = e.target;
+                            const p = feature.properties;
+                            const val = activeScores[p.SAL_CODE21];
+                            const metaKey = currentMode === 'single' ? document.getElementById('metric-select').value : 'formula';
+                            l.setStyle({ weight: 2.2, color: '#f8fafc' });
+                            l.bindTooltip(`
+                                <strong>${p.SAL_NAME21} (${p.postcode || 'N/A'})</strong><br/>
+                                Active Layer: <b>${formatValue(val, metaKey)}</b><br/>
+                                W1: <b>${p.work1_mins ?? '-'}m</b> • W2: <b>${p.work2_mins ?? '-'}m</b> • Schools (2km): <b>${p.schools_count ?? '-'}</b>
+                            `, { sticky: true, className: 'suburb-tooltip' }).openTooltip();
+                        },
+                        mouseout: (e) => {
+                            const l = e.target;
+                            const code = feature.properties.SAL_CODE21;
+                            const isSel = selectedLayer && selectedLayer.feature.properties.SAL_CODE21 === code;
+                            const isComp = comparedSuburbs.some(f => f.properties.SAL_CODE21 === code);
+                            l.setStyle({
+                                weight: (isSel || isComp) ? 2.4 : 0.8,
+                                color: isSel ? '#ffffff' : (isComp ? '#f59e0b' : '#0f172a')
+                            });
+                        },
+                        click: (e) => {
+                            const p = feature.properties;
+                            if (pickingWorkplace !== null) {
+                                const id = pickingWorkplace;
+                                workplaces[id].lat = e.latlng.lat;
+                                workplaces[id].lon = e.latlng.lng;
+                                workplaces[id].name = p.SAL_NAME21;
+                                document.getElementById(`w${id}-input`).value = `${p.SAL_NAME21} (${p.postcode || ''})`;
+                                pickingWorkplace = null;
+                                document.getElementById('w1-pin-btn').classList.remove('picking');
+                                document.getElementById('w2-pin-btn').classList.remove('picking');
+
+                                updateWorkplaceStationLink(id);
+                                createWorkMarker(id, workplaces[id].lat, workplaces[id].lon, workplaces[id].name);
+                                recomputeDualCommutes();
+                                updateDashboard();
+                                if (selectedLayer) inspectSuburb(selectedLayer);
+                                return;
+                            }
+
+                            if (e.originalEvent && e.originalEvent.shiftKey) {
+                                toggleSuburbInCompare(feature);
+                                document.getElementById('inspector').style.display = 'block';
+                                setInspectorTab('compare');
+                                return;
+                            }
+
+                            inspectSuburb(e.target);
+                        }
+                    });
+                }
+            }).addTo(map);
+        }
+
+        // Custom Region Polygon Select & CSV Exporter (Turf.js)
+        map.on(L.Draw.Event.CREATED, function (event) {
+            drawnItems.clearLayers();
+            const layer = event.layer;
+            drawnItems.addLayer(layer);
+            const drawnGeo = layer.toGeoJSON();
+
+            const rentCol = resolveDynamicColumn('rent');
+            const buyCol  = resolveDynamicColumn('buy_price');
+            const matched = [];
+
+            geojsonData.features.forEach(f => {
+                const p = f.properties;
+                if (!p.cent_lon || !p.cent_lat) return;
+                const pt = turf.point([p.cent_lon, p.cent_lat]);
+                if (turf.booleanPointInPolygon(pt, drawnGeo)) {
+                    matched.push(p);
+                }
+            });
+
+            lastExportRows = matched;
+            if (!matched.length) {
+                layer.bindPopup(`<b>No Suburb Centroids Inside Box</b>`).openPopup();
+                return;
+            }
+
+            const avg = (arr) => arr.length ? (arr.reduce((a, b) => a + b, 0) / arr.length) : null;
+            const rents = matched.map(m => Number(m[rentCol])).filter(v => !isNaN(v) && v > 0);
+            const buys  = matched.map(m => Number(m[buyCol])).filter(v => !isNaN(v) && v > 0);
+            const comms = matched.map(m => Number(m.couple_avg)).filter(v => !isNaN(v) && v > 0);
+
+            const popupHtml = `
+                <div style="font-family:'Inter',sans-serif;color:#0f172a;min-width:210px;">
+                    <h4 style="margin-bottom:4px;">📐 Custom Region (${matched.length} Suburbs)</h4>
+                    <div style="font-size:12px;line-height:1.5;">
+                        • Avg Filtered Rent: <b>${formatValue(avg(rents), 'rent')}</b><br/>
+                        • Avg Filtered Buy: <b>${formatValue(avg(buys), 'buy_price')}</b><br/>
+                        • Avg Couples Commute: <b>${comms.length ? Math.round(avg(comms)) + ' mins' : 'N/A'}</b>
+                    </div>
+                    <button onclick="downloadRegionCsv()" style="margin-top:8px;width:100%;padding:6px;background:#0284c7;color:#fff;border:none;border-radius:4px;font-weight:600;cursor:pointer;">
+                        📥 Export ${matched.length} Suburbs to CSV
+                    </button>
+                </div>
+            `;
+            layer.bindPopup(popupHtml).openPopup();
+        });
+
+        function downloadRegionCsv() {
+            if (!lastExportRows.length) return;
+            const cols = [
+                'SAL_NAME21', 'postcode', 'population', 'rent_all_med', 'buy_all_med',
+                'yield_all_pct', 'work1_mins', 'work2_mins', 'couple_avg',
+                'nearest_station', 'station_dist_km', 'schools_count',
+                'shopping_dist_km', 'hospital_dist_km', 'crime_total_rate',
+                'summer_max_temp', 'parkland_pct'
+            ];
+            const csvLines = [cols.join(',')];
+            lastExportRows.forEach(r => {
+                const rowVals = cols.map(c => `"${String(r[c] ?? '').replace(/"/g, '""')}"`);
+                csvLines.push(rowVals.join(','));
+            });
+            const blob = new Blob([csvLines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `sydney_selected_suburbs_${lastExportRows.length}.csv`;
+            a.click();
+        }
+
+        function inspectSuburb(layer) {
+            selectedLayer = layer;
+            updateDashboard();
+
+            const p = layer.feature.properties;
+            const code = p.SAL_CODE21;
+            const rentCol = resolveDynamicColumn('rent');
+            const buyCol  = resolveDynamicColumn('buy_price');
+
+            document.getElementById('inspector').style.display = 'block';
+            setInspectorTab('single');
+            document.getElementById('insp-name').innerText = p.SAL_NAME21;
+
+            const isHub = (Number(p.commercial_pct) || 0) >= 15.0;
+            document.getElementById('insp-badges').innerHTML = `
+                <span class="postcode-badge">POA ${p.postcode || 'N/A'} • Pop ${(p.population || 0).toLocaleString()}</span>
+                ${isHub ? '<span class="hub-badge">⚡ Commercial / Event Hub (Ambient Adjusted)</span>' : ''}
+            `;
+
+            const isPinned = comparedSuburbs.some(f => f.properties.SAL_CODE21 === code);
+            const pinBtn = document.getElementById('pin-compare-btn');
+            pinBtn.innerText = isPinned ? '✓ Pinned in Compare' : '+ Pin to Compare';
+            pinBtn.style.borderColor = isPinned ? '#22c55e' : '#334155';
+
+            const statsHtml = `
+                <div class="stat-box">
+                    <div class="stat-label">Filtered Rent (${rentCol.replace('rent_','').replace('_med','')})</div>
+                    <div class="stat-val">${formatValue(p[rentCol], 'rent')}</div>
+                    <div class="stat-sub">Bonds N = ${p.rent_all_count || 0} • Yield: ${formatValue(p.yield_all_pct, 'yield')}</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">Filtered Buy (${buyCol.replace('buy_','').replace('_med','')})</div>
+                    <div class="stat-val">${formatValue(p[buyCol], 'buy_price')}</div>
+                    <div class="stat-sub">Sales N = ${p.buy_all_count || 0} • ${formatValue(p.house_price_per_m2, 'house_price_per_m2')}</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">Workplace 1 & 2 Commute</div>
+                    <div class="stat-val" style="font-size:0.83rem;">W1: ${p.work1_mins ?? '-'}m | W2: ${p.work2_mins ?? '-'}m</div>
+                    <div class="stat-sub">Avg: ${p.couple_avg ?? '-'}m • Diff: ${p.couple_diff ?? '-'}m • Stn: ${p.station_dist_km ?? '-'}km</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">Schools, Hospital & Shops</div>
+                    <div class="stat-val" style="font-size:0.83rem;">🏫 ${p.schools_count ?? 0} Schools (2km)</div>
+                    <div class="stat-sub">🏥 Hosp: ${p.hospital_dist_km ?? '-'}km • 🛍️ Mall: ${p.shopping_dist_km ?? '-'}km</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">Residential Crime Rate</div>
+                    <div class="stat-val">${formatValue(p.crime_total_rate, 'crime_total_rate')}</div>
+                    <div class="stat-sub">Raw Unadj: ${p.crime_raw_rate ?? '-'} | 5yr: ${p.crime_5yr_trend_pct ?? 0}%</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">Climate & Parkland</div>
+                    <div class="stat-val">${p.summer_max_temp ?? '-'}°C / ${p.winter_min_temp ?? '-'}°C</div>
+                    <div class="stat-sub">Park: ${p.parkland_pct ?? 0}% • Beach: ${p.beach_dist_km ?? '-'} km</div>
+                </div>
+            `;
+            document.getElementById('insp-stats').innerHTML = statsHtml;
+
+            const radarScores = getSuburbRadarArray(code, rentCol, buyCol);
+            const ctx = document.getElementById('radarChart').getContext('2d');
+            if (radarChartInstance) radarChartInstance.destroy();
+            radarChartInstance = new Chart(ctx, {
+                type: 'radar',
+                data: {
+                    labels: ['Rent Value', 'Buy Value', 'Couples Commute', 'Res. Safety', 'Schools & Shops', 'Green & Cool'],
+                    datasets: [{
+                        label: p.SAL_NAME21,
+                        data: radarScores,
+                        backgroundColor: 'rgba(56, 189, 248, 0.25)',
+                        borderColor: '#38bdf8',
+                        pointBackgroundColor: '#38bdf8',
+                        borderWidth: 2
+                    }, {
+                        label: 'Sydney Median (50)',
+                        data: [50, 50, 50, 50, 50, 50],
+                        backgroundColor: 'transparent',
+                        borderColor: '#64748b',
+                        borderDash: [4, 4],
+                        pointRadius: 0,
+                        borderWidth: 1.5
+                    }]
+                },
+                options: {
+                    scales: {
+                        r: {
+                            min: 0, max: 100,
+                            ticks: { display: false, stepSize: 25 },
+                            grid: { color: '#334155' },
+                            angleLines: { color: '#334155' },
+                            pointLabels: { color: '#e2e8f0', font: { size: 10, family: 'Inter' } }
+                        }
+                    },
+                    plugins: { legend: { labels: { color: '#94a3b8', font: { size: 10 } } } }
+                }
+            });
+        }
+
+        function getSuburbRadarArray(code, rentCol, buyCol) {
+            const getPctScore = (col, invert = false) => {
+                const rawP = normStore.percentile[col]?.[code];
+                if (rawP === null || rawP === undefined) return 50;
+                return Math.round((invert ? (1 - rawP) : rawP) * 100);
+            };
+            const infraScore = Math.round((getPctScore('schools_count', false) + getPctScore('shopping_dist_km', true)) / 2);
+            const envScore   = Math.round((getPctScore('parkland_pct', false) + getPctScore('summer_max_temp', true)) / 2);
+            return [
+                getPctScore(rentCol, true),
+                getPctScore(buyCol, true),
+                getPctScore('couple_avg', true),
+                getPctScore('crime_total_rate', true),
+                infraScore,
+                envScore
+            ];
+        }
+
+        // =========================================================================
+        // 8. MULTI-SUBURB SIDE-BY-SIDE COMPARISON LOGIC
+        // =========================================================================
+        function setInspectorTab(tab) {
+            inspectorTab = tab;
+            document.getElementById('insp-tab-single').classList.toggle('active', tab === 'single');
+            document.getElementById('insp-tab-compare').classList.toggle('active', tab === 'compare');
+            document.getElementById('insp-single-pane').style.display = tab === 'single' ? 'block' : 'none';
+            document.getElementById('insp-compare-pane').style.display = tab === 'compare' ? 'block' : 'none';
+            if (tab === 'compare') renderComparisonView();
+        }
+
+        function toggleCompareCurrent() {
+            if (!selectedLayer) return;
+            toggleSuburbInCompare(selectedLayer.feature);
+            inspectSuburb(selectedLayer);
+        }
+
+        function toggleSuburbInCompare(feature) {
+            const code = feature.properties.SAL_CODE21;
+            const idx = comparedSuburbs.findIndex(f => f.properties.SAL_CODE21 === code);
+            if (idx >= 0) {
+                comparedSuburbs.splice(idx, 1);
+            } else {
+                if (comparedSuburbs.length >= 4) comparedSuburbs.shift();
+                comparedSuburbs.push(feature);
+            }
+            document.getElementById('comp-count').innerText = comparedSuburbs.length;
+            updateDashboard();
+            if (inspectorTab === 'compare') renderComparisonView();
+        }
+
+        function renderComparisonView() {
+            const chipsEl = document.getElementById('comp-chips');
+            const tableEl = document.getElementById('comp-table');
+            const colors = ['#38bdf8', '#f43f5e', '#22c55e', '#f59e0b'];
+
+            if (comparedSuburbs.length === 0) {
+                chipsEl.innerHTML = '<span style="font-size:0.74rem;color:var(--text-muted);">No suburbs pinned yet. Click "+ Pin to Compare" on any suburb!</span>';
+                tableEl.innerHTML = '';
+                if (compRadarInstance) compRadarInstance.destroy();
+                return;
+            }
+
+            chipsEl.innerHTML = comparedSuburbs.map((f, i) => `
+                <div class="comp-chip" style="border-color:${colors[i]}">
+                    <span style="color:${colors[i]}">●</span>
+                    <span>${f.properties.SAL_NAME21}</span>
+                    <span style="cursor:pointer;color:var(--text-muted);" onclick="removeCompared('${f.properties.SAL_CODE21}')">✕</span>
+                </div>
+            `).join('');
+
+            const rentCol = resolveDynamicColumn('rent');
+            const buyCol  = resolveDynamicColumn('buy_price');
+
+            const datasets = comparedSuburbs.map((f, i) => ({
+                label: f.properties.SAL_NAME21,
+                data: getSuburbRadarArray(f.properties.SAL_CODE21, rentCol, buyCol),
+                backgroundColor: colors[i] + '22',
+                borderColor: colors[i],
+                pointBackgroundColor: colors[i],
+                borderWidth: 2
+            }));
+
+            const ctx = document.getElementById('compRadarChart').getContext('2d');
+            if (compRadarInstance) compRadarInstance.destroy();
+            compRadarInstance = new Chart(ctx, {
+                type: 'radar',
+                data: {
+                    labels: ['Rent Value', 'Buy Value', 'Couples Commute', 'Res. Safety', 'Schools & Shops', 'Green & Cool'],
+                    datasets
+                },
+                options: {
+                    scales: {
+                        r: {
+                            min: 0, max: 100,
+                            ticks: { display: false, stepSize: 25 },
+                            grid: { color: '#334155' },
+                            angleLines: { color: '#334155' },
+                            pointLabels: { color: '#e2e8f0', font: { size: 10 } }
+                        }
+                    },
+                    plugins: { legend: { labels: { color: '#e2e8f0', font: { size: 10 } } } }
+                }
+            });
+
+            const rowsSpec = [
+                { label: 'Rent ($/wk)', col: rentCol, meta: 'rent', lowerBetter: true },
+                { label: 'Buy Price', col: buyCol, meta: 'buy_price', lowerBetter: true },
+                { label: 'Rental Yield', col: 'yield_all_pct', meta: 'yield', lowerBetter: false },
+                { label: 'Work 1 (mins)', col: 'work1_mins', meta: 'work1_mins', lowerBetter: true },
+                { label: 'Work 2 (mins)', col: 'work2_mins', meta: 'work2_mins', lowerBetter: true },
+                { label: 'Couples Avg', col: 'couple_avg', meta: 'couple_avg', lowerBetter: true },
+                { label: 'Schools (2km)', col: 'schools_count', meta: 'schools_count', lowerBetter: false },
+                { label: 'Shopping Dist', col: 'shopping_dist_km', meta: 'shopping_dist_km', lowerBetter: true },
+                { label: 'Hospital Dist', col: 'hospital_dist_km', meta: 'hospital_dist_km', lowerBetter: true },
+                { label: 'Res. Crime /1k', col: 'crime_total_rate', meta: 'crime_total_rate', lowerBetter: true },
+                { label: 'Summer Max °C', col: 'summer_max_temp', meta: 'summer_max_temp', lowerBetter: true },
+                { label: 'Parkland %', col: 'parkland_pct', meta: 'parkland_pct', lowerBetter: false }
+            ];
+
+            let html = `<thead><tr><th>Metric</th>${comparedSuburbs.map((f, i) => `<th style="color:${colors[i]}">${f.properties.SAL_NAME21.slice(0, 10)}</th>`).join('')}</tr></thead><tbody>`;
+
+            rowsSpec.forEach(r => {
+                const nums = comparedSuburbs.map(f => {
+                    const v = f.properties[r.col];
+                    return (v === null || v === undefined || isNaN(Number(v))) ? null : Number(v);
+                });
+                const validNums = nums.filter(v => v !== null);
+                const bestVal = validNums.length
+                    ? (r.lowerBetter ? Math.min(...validNums) : Math.max(...validNums))
+                    : null;
+
+                html += `<tr><td>${r.label}</td>`;
+                nums.forEach(v => {
+                    const isBest = (bestVal !== null && v === bestVal && validNums.length > 1);
+                    html += `<td class="${isBest ? 'best-cell' : ''}">${formatValue(v, r.meta)}</td>`;
+                });
+                html += `</tr>`;
+            });
+            html += `</tbody>`;
+            tableEl.innerHTML = html;
+        }
+
+        function removeCompared(code) {
+            comparedSuburbs = comparedSuburbs.filter(f => f.properties.SAL_CODE21 !== code);
+            document.getElementById('comp-count').innerText = comparedSuburbs.length;
+            updateDashboard();
+            renderComparisonView();
+        }
+
+        function closeInspector() {
+            document.getElementById('inspector').style.display = 'none';
+            if (selectedLayer) {
+                selectedLayer = null;
+                updateDashboard();
+            }
+        }
+
+        // =========================================================================
+        // 9. UI CONTROL HANDLERS
+        // =========================================================================
+        function setMode(mode) {
+            currentMode = mode;
+            document.getElementById('tab-single').classList.toggle('active', mode === 'single');
+            document.getElementById('tab-formula').classList.toggle('active', mode === 'formula');
+            document.getElementById('single-metric-card').style.display = mode === 'single' ? 'flex' : 'none';
+            document.getElementById('formula-card').style.display = mode === 'formula' ? 'flex' : 'none';
+            updateDashboard();
+        }
+
+        function setDwelling(val) {
+            filterDwelling = val;
+            document.querySelectorAll('#dwelling-pills .pill').forEach(el => {
+                el.classList.toggle('active', el.dataset.val === val);
+            });
+            updateDashboard();
+            if (selectedLayer) inspectSuburb(selectedLayer);
+            if (inspectorTab === 'compare') renderComparisonView();
+        }
+
+        function setBeds(val) {
+            filterBeds = val;
+            document.querySelectorAll('#bed-pills .pill').forEach(el => {
+                el.classList.toggle('active', el.dataset.val === val);
+            });
+            updateDashboard();
+            if (selectedLayer) inspectSuburb(selectedLayer);
+            if (inspectorTab === 'compare') renderComparisonView();
+        }
+
+        function setLand(val) {
+            filterLand = val;
+            document.querySelectorAll('#land-pills .pill').forEach(el => {
+                el.classList.toggle('active', el.dataset.val === val);
+            });
+            updateDashboard();
+            if (selectedLayer) inspectSuburb(selectedLayer);
+            if (inspectorTab === 'compare') renderComparisonView();
+        }
+
+        function insertToken(token) {
+            const box = document.getElementById('formula-input');
+            const start = box.selectionStart;
+            const end = box.selectionEnd;
+            const text = box.value;
+            box.value = text.substring(0, start) + token + text.substring(end);
+            box.focus();
+            box.selectionStart = box.selectionEnd = start + token.length;
+        }
+
+        function applyPresetDropdown(expr) {
+            if (!expr) return;
+            document.getElementById('formula-input').value = expr;
+            updateDashboard();
+        }
+
+        function toggleSortOrder() {
+            sortDescending = !sortDescending;
+            document.getElementById('sort-dir-btn').innerText = sortDescending ? 'High → Low' : 'Low → High';
+            const metaKey = currentMode === 'single' ? document.getElementById('metric-select').value : 'formula';
+            updateLeaderboard(metaKey);
+        }
+    </script>
+</body>
+</html>
