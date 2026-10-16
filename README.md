@@ -25,13 +25,13 @@ By applying a "Hybrid Approach," heavy spatial mathematics and data cleansing ar
 
 ## Local Installation & Development
 
-Because this application relies on asynchronous JavaScript `fetch()` requests to load the local GeoJSON data, opening `index.html` directly in a browser will be blocked by strict CORS security policies[cite: 4, 5].
+Because this application relies on asynchronous JavaScript `fetch()` requests to load the local GeoJSON data, opening `index.html` directly in a browser will be blocked by strict CORS security policies.
 
 To run the dashboard locally:
 
 1. **Clone the repository:**
    ```bash
-   git clone [https://github.com/ionawest/Sydney_Housing.git](https://github.com/ionawest/Sydney_Housing.git)
+   git clone https://github.com/ionawest/Sydney_Housing.git
    cd Sydney_Housing
 
 2. **Start a local Python web server:**
