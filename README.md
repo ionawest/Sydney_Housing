@@ -35,14 +35,23 @@ To run the dashboard locally:
    cd Sydney_Housing
 
 2. **Start a local Python web server:**
+
     Run "python -m http.server 8000"
 
 3. Navigate to http://localhost:8000 in Chrome, Firefox, or Safari.
 
+---
+
 Primary Data Sources:
+
 Australian Bureau of Statistics (ABS): Digital Boundary Files (SAL/POA), 2021 Census DataPacks, Mesh Block Land Use.
+
 NSW Government: Valuer General Bulk Property Sales Information, Fair Trading Rental Bonds.
+
 BOCSAR: Recorded Criminal Incidents Open Data.
+
 Transport for NSW (TfNSW): Complete GTFS Timetables and Shapes.
+
 OpenStreetMap (Overpass API): Infrastructure mapping (Hospitals, Shopping Centres, Schools).
+
 Open-Meteo: ERA5 Historical Climatology Archive and Digital Elevation Models.
