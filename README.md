@@ -31,8 +31,8 @@ To run the dashboard locally:
 
 1. **Clone the repository:**
    ```bash
-   git clone [https://github.com/yourusername/sydney-livability-engine.git](https://github.com/yourusername/sydney-livability-engine.git)
-   cd sydney-livability-engine
+   git clone [https://github.com/ionawest/Sydney_Housing.git](https://github.com/ionawest/Sydney_Housing.git)
+   cd Sydney_Housing
 
 2. **Start a local Python web server:**
     Run "python -m http.server 8000"
